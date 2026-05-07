@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>搬砖记</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{height:100%;overflow:hidden;background:#0a0a0a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:14px}
+#app{width:100%;height:100%;max-width:500px;margin:0 auto;position:relative;background:#0a0a0a;display:flex;flex-direction:column}
+.page{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:80px;display:none}
+.page.active{display:block}
+.page::-webkit-scrollbar{display:none}
+.header{padding:env(safe-area-inset-top) 16px 0;padding-top:calc(env(safe-area-inset-top) + 12px);padding-bottom:12px;background:#0a0a0a;position:sticky;top:0;z-index:10;border-bottom:1px solid #1a1a1a}
+.header h1{font-size:18px;font-weight:600;text-align:center}
+.header .left{position:absolute;left:16px;top:calc(env(safe-area-inset-top) + 12px)}
+.header .right{position:absolute;right:16px;top:calc(env(safe-area-inset-top) + 12px)}
+.tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;background:#141414;border-top:1px solid #1a1a1a;display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100}
+.tabbar .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px;color:#666;cursor:pointer;transition:color .2s}
+.tabbar .tab.active{color:#ff8c1a}
+.tabbar .tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2}
+.tabbar .tab .label{font-size:11px}
+.tabbar .add-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:#ff8c1a}
+.tabbar .add-btn .circle{width:42px;height:42px;border-radius:50%;background:#ff8c1a;display:flex;align-items:center;justify-content:center;margin-top:-16px;box-shadow:0 4px 12px rgba(255,140,26,0.4)}
+.tabbar .add-btn .circle svg{width:22px;height:22px;stroke:#fff;stroke-width:3}
+.tabbar .add-btn .label{font-size:11px}
+/* Calendar */
+.cal-head{display:grid;grid-template-columns:repeat(7,1fr);background:#1e3a8a;color:#fff;padding:10px 0;font-size:14px;text-align:center;font-weight:500}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:4px}
+.cal-cell{aspect-ratio:1/1.15;border-radius:8px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6px 2px 2px;cursor:pointer;transition:background .2s}
+.cal-cell.other{opacity:.35}
+.cal-cell.today{background:#1a3a6e}
+.cal-cell .day{font-size:18px;font-weight:700;line-height:1}
+.cal-cell .lunar{font-size:9px;color:#888;margin-top:2px}
+.cal-cell .badge{position:absolute;bottom:2px;left:2px;right:2px;padding:2px 4px;border-radius:4px;font-size:9px;text-align:center;white-space:nowrap;overflow:hidden}
+.cal-cell .income-badge{background:#c9a227;color:#fff;font-weight:600}
+.cal-cell .expense-badge{background:#dc2626;color:#fff}
+.cal-cell .today-badge{background:#2563eb;color:#fff}
+.cal-cell.weekend .day{color:#ef4444}
+.cal-cell.holiday .day{color:#ef4444}
+.cal-cell .corner{position:absolute;top:2px;right:4px;font-size:10px;padding:1px 4px;border-radius:4px;font-weight:500}
+.cal-cell .corner.rest{background:#dc2626;color:#fff}
+.cal-cell .corner.work{background:#111;color:#fff}
+/* Month switcher */
+.month-bar{display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 16px;background:#0a0a0a}
+.month-bar .arrow{width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#888}
+.month-bar .title{font-size:16px;font-weight:600;min-width:120px;text-align:center}
+/* Info card under calendar */
+.info-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 16px}
+.info-card{background:#141414;border-radius:12px;padding:14px;border:1px solid #1f1f1f}
+.info-card .title{font-size:15px;font-weight:600;margin-bottom:10px}
+.info-card .row{display:flex;justify-content:space-between;margin-bottom:8px;align-items:center}
+.info-card .row .label{font-size:11px;color:#888}
+.info-card .row .value{font-size:20px;font-weight:700;color:#ffa500}
+.info-card .row .value.blue{color:#3b82f6}
+.info-card .row .value.yellow{color:#c9a227}
+.info-card .hint{font-size:12px;color:#666;margin-bottom:8px}
+.info-card .record-btn{width:100%;padding:12px;background:#2563eb;border:none;border-radius:8px;color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+.info-card .formula{font-size:11px;color:#aaa;background:#1a1a1a;padding:6px 8px;border-radius:6px;margin-top:8px}
+.info-card .formula .tag{display:inline-block;padding:1px 6px;border-radius:3px;background:#2a2a2a;margin-right:2px}
+.info-card .formula .tag.hour{background:#1e40af33;color:#93c5fd}
+.info-card .formula .tag.meal{background:#15803d33;color:#86efac}
+.info-card .formula .tag.night{background:#7c2d1233;color:#fca5a5}
+.info-card .triple{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin:10px 0}
+.info-card .triple .cell .k{font-size:11px;color:#888}
+.info-card .triple .cell .v{font-size:22px;font-weight:700;color:#ffa500;margin-top:2px}
+.info-card .triple .cell .u{font-size:10px;color:#666}
+.info-card .edit-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px}
+.info-card .edit-row .cat{color:#888}
+.info-card .edit-row .edit{color:#3b82f6;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="app">
+<!-- Page: Calendar (home) -->
+<div class="page active" id="page-calendar">
+<div class="header">
+<h1>搬砖记</h1>
+<div class="left" id="cal-month-chip" style="font-size:12px;background:#1f1f1f;padding:6px 10px;border-radius:14px;cursor:pointer">26年5月</div>
+</div>
+<div class="cal-head">
+<div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+</div>
+<div class="cal-grid" id="cal-grid"></div>
+<div class="info-cards" id="today-cards"></div>
+</div>
+
+<!-- Page: Hours -->
+<div class="page" id="page-hours">
+<div class="header"><h1>工时记录</h1></div>
+<div id="hours-list"></div>
+</div>
+
+<!-- Page: Ledger -->
+<div class="page" id="page-ledger">
+<div class="header"><h1 id="ledger-title">个人账本</h1><div class="right" id="ledger-stats-btn" style="color:#ffa500;cursor:pointer">📊</div></div>
+<div id="ledger-list"></div>
+</div>
+
+<!-- Page: Stats -->
+<div class="page" id="page-stats">
+<div class="header"><h1>统计</h1></div>
+<div id="stats-body"></div>
+</div>
+
+<!-- Page: Stats -->
+<div class="page" id="page-stats" style="display:none">
+<div class="header"><h1>统计</h1><div class="left" style="color:#888;cursor:pointer" onclick="switchTab('ledger')">‹ 返回</div></div>
+<div id="stats-body"></div>
+</div>
+
+<!-- Page: Me -->
+<div class="page" id="page-me">
+<div class="header"><h1>我的</h1></div>
+<div id="me-body"></div>
+</div>
+
+<!-- Bottom Tab -->
+<div class="tabbar">
+<div class="tab active" data-tab="calendar">
+<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+<span class="label">日历</span>
+</div>
+<div class="tab" data-tab="hours">
+<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+<span class="label">工时</span>
+</div>
+<div class="add-btn" id="add-btn">
+<div class="circle"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+<span class="label">添加</span>
+</div>
+<div class="tab" data-tab="ledger">
+<svg viewBox="0 0 24 24"><path d="M21 7.5V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11.5L21 7.5z"/><path d="M3 10h18"/></svg>
+<span class="label">账本</span>
+</div>
+<div class="tab" data-tab="me">
+<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
+<span class="label">我的</span>
+</div>
+</div>
+
+<!-- Sheet container -->
+<div id="sheet-root"></div>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
