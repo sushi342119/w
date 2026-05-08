@@ -16,10 +16,12 @@ html,body{height:100%;overflow:hidden;background:#0a0a0a;color:#fff;font-family:
 .page{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:80px;display:none}
 .page.active{display:block}
 .page::-webkit-scrollbar{display:none}
-.header{padding:env(safe-area-inset-top) 16px 0;padding-top:calc(env(safe-area-inset-top) + 12px);padding-bottom:12px;background:#0a0a0a;position:sticky;top:0;z-index:10;border-bottom:1px solid #1a1a1a}
-.header h1{font-size:18px;font-weight:600;text-align:center}
-.header .left{position:absolute;left:16px;top:calc(env(safe-area-inset-top) + 12px)}
-.header .right{position:absolute;right:16px;top:calc(env(safe-area-inset-top) + 12px)}
+.header{padding:env(safe-area-inset-top) 16px 0;padding-top:calc(env(safe-area-inset-top) + 10px);padding-bottom:10px;background:#0a0a0a;position:sticky;top:0;z-index:10;border-bottom:1px solid #1a1a1a;min-height:28px}
+.header h1{font-size:16px;font-weight:600;text-align:center}
+.header.compact{padding-top:calc(env(safe-area-inset-top) + 8px);padding-bottom:6px}
+.header.compact h1{font-size:14px;color:#ccc}
+.header .left{position:absolute;left:16px;top:calc(env(safe-area-inset-top) + 8px)}
+.header .right{position:absolute;right:16px;top:calc(env(safe-area-inset-top) + 8px)}
 .tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:500px;background:#141414;border-top:1px solid #1a1a1a;display:flex;padding:8px 0 calc(8px + env(safe-area-inset-bottom));z-index:100}
 .tabbar .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px;color:#666;cursor:pointer;transition:color .2s}
 .tabbar .tab.active{color:#ff8c1a}
@@ -30,22 +32,24 @@ html,body{height:100%;overflow:hidden;background:#0a0a0a;color:#fff;font-family:
 .tabbar .add-btn .circle svg{width:22px;height:22px;stroke:#fff;stroke-width:3}
 .tabbar .add-btn .label{font-size:11px}
 /* Calendar */
-.cal-head{display:grid;grid-template-columns:repeat(7,1fr);background:#1e3a8a;color:#fff;padding:10px 0;font-size:14px;text-align:center;font-weight:500}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:4px}
-.cal-cell{aspect-ratio:1/1.15;border-radius:8px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6px 2px 2px;cursor:pointer;transition:background .2s}
+.cal-head{display:grid;grid-template-columns:repeat(7,1fr);background:#1e3a8a;color:#fff;padding:8px 0;font-size:13px;text-align:center;font-weight:500}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:3px}
+.cal-cell{aspect-ratio:1/1.1;border-radius:8px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:4px 2px 2px;cursor:pointer;transition:background .2s}
 .cal-cell.other{opacity:.35}
 .cal-cell.today{background:#1a3a6e}
-.cal-cell .day{font-size:18px;font-weight:700;line-height:1}
-.cal-cell .lunar{font-size:9px;color:#888;margin-top:2px}
+.cal-cell.selected{box-shadow:inset 0 0 0 2px #ff8c1a}
+.cal-cell .day{font-size:17px;font-weight:700;line-height:1}
+.cal-cell .lunar{font-size:9px;color:#888;margin-top:1px}
 .cal-cell .badge{position:absolute;bottom:2px;left:2px;right:2px;padding:2px 4px;border-radius:4px;font-size:9px;text-align:center;white-space:nowrap;overflow:hidden}
 .cal-cell .income-badge{background:#c9a227;color:#fff;font-weight:600}
 .cal-cell .expense-badge{background:#dc2626;color:#fff}
 .cal-cell .today-badge{background:#2563eb;color:#fff}
 .cal-cell.weekend .day{color:#ef4444}
 .cal-cell.holiday .day{color:#ef4444}
-.cal-cell .corner{position:absolute;top:2px;right:4px;font-size:10px;padding:1px 4px;border-radius:4px;font-weight:500}
-.cal-cell .corner.rest{background:#dc2626;color:#fff}
-.cal-cell .corner.work{background:#111;color:#fff}
+.cal-cell .corner{position:absolute;top:2px;right:3px;font-size:9px;padding:1px 4px;border-radius:4px;font-weight:500;line-height:1.2}
+.cal-cell .corner.rest{background:#dc262699;color:#fff}
+.cal-cell .corner.work{background:#3b82f699;color:#fff}
+.cal-cell .ot-fire{position:absolute;top:2px;left:3px;font-size:9px;line-height:1}
 /* Month switcher */
 .month-bar{display:flex;align-items:center;justify-content:center;gap:16px;padding:12px 16px;background:#0a0a0a}
 .month-bar .arrow{width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#888}
@@ -73,16 +77,18 @@ html,body{height:100%;overflow:hidden;background:#0a0a0a;color:#fff;font-family:
 .info-card .edit-row{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px}
 .info-card .edit-row .cat{color:#888}
 .info-card .edit-row .edit{color:#3b82f6;cursor:pointer}
+@keyframes flashBill{0%,100%{box-shadow:0 0 0 0 #fbbf2400}50%{box-shadow:0 0 0 6px #fbbf2433}}
 </style>
 </head>
 <body>
 <div id="app">
 <!-- Page: Calendar (home) -->
 <div class="page active" id="page-calendar">
-<div class="header">
+<div class="header compact">
 <h1>搬砖记</h1>
-<div class="left" id="cal-month-chip" style="font-size:12px;background:#1f1f1f;padding:6px 10px;border-radius:14px;cursor:pointer">26年5月</div>
+<div class="left" id="cal-month-chip" style="font-size:12px;background:#1f1f1f;padding:5px 10px;border-radius:14px;cursor:pointer">26年5月</div>
 </div>
+<div id="overview-card"></div>
 <div class="cal-head">
 <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
 </div>
@@ -104,12 +110,6 @@ html,body{height:100%;overflow:hidden;background:#0a0a0a;color:#fff;font-family:
 
 <!-- Page: Stats -->
 <div class="page" id="page-stats">
-<div class="header"><h1>统计</h1></div>
-<div id="stats-body"></div>
-</div>
-
-<!-- Page: Stats -->
-<div class="page" id="page-stats" style="display:none">
 <div class="header"><h1>统计</h1><div class="left" style="color:#888;cursor:pointer" onclick="switchTab('ledger')">‹ 返回</div></div>
 <div id="stats-body"></div>
 </div>

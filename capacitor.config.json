@@ -1,0 +1,12 @@
+{
+  "appId": "com.banzhuanji.app",
+  "appName": "搬砖记",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0a0a0a"
+  }
+}
