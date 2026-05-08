@@ -133,7 +133,7 @@ function pushUndo(desc){
 }
 function undoLast(){
   const last = STATE.undoStack.pop();
-  if(!last){ alert('没有可撤销的操作'); return false; }
+  if(!last){ showToast('没有可撤销的操作'); return false; }
   STATE.hours = last.snapshot.hours;
   STATE.records = last.snapshot.records;
   saveData();
@@ -803,8 +803,8 @@ function openHoursSheet(dateKey){
   updateVisibility();
   document.getElementById('btn-cancel').addEventListener('click',closeSheet);
   const del = document.getElementById('btn-delete');
-  if(del) del.addEventListener('click',()=>{
-    if(confirm('删除这天的工时记录？')){
+  if(del) del.addEventListener('click',async()=>{
+    if(await showConfirm({icon:'🗑️', title:'删除工时？', message:'这天的工时记录将被删除，无法恢复', okText:'删除', cancelText:'取消', danger:true})){
       pushUndo('删除工时:'+dateKey);
       delete STATE.hours[dateKey];
       syncSalaryRecord(dateKey);
@@ -1157,8 +1157,8 @@ function openRecordSheet(existing, prefill){
       else if(k==='.'){ if(!amt.includes('.')) amt += '.'; }
       else if(k==='save'){
         const val = parseFloat(String(amount))||0;
-        if(val<=0){ alert('请输入金额'); return; }
-        if(!cat){ alert('请选择分类'); return; }
+        if(val<=0){ showToast('⚠️ 请输入金额'); return; }
+        if(!cat){ showToast('⚠️ 请选择分类'); return; }
         // 支出且未选账户时，先弹账户选择
         if(!existing && !account && type==='expense' && STATE.accounts.length>0){
           openAccountPicker(()=>{
@@ -1187,8 +1187,8 @@ function openRecordSheet(existing, prefill){
       if(amtEl) amtEl.textContent = amt;
     }));
     const del = document.getElementById('rec-del');
-    if(del) del.addEventListener('click',()=>{
-      if(confirm('删除此记录？')){
+    if(del) del.addEventListener('click',async()=>{
+      if(await showConfirm({icon:'🗑️', title:'删除此记录？', message:'这条记账条目将被删除', okText:'删除', cancelText:'取消', danger:true})){
         pushUndo('删除记账');
         STATE.records = STATE.records.filter(x=>x.id!==existing.id);
         saveData(); closeSheet(); renderCurrentTab();
@@ -1203,7 +1203,7 @@ function openRecordSheet(existing, prefill){
     const tplBtn = document.getElementById('rec-tpl');
     if(tplBtn) tplBtn.addEventListener('click',()=>{
       const val = parseFloat(String(amount))||0;
-      if(val<=0 || !cat){ alert('请先填好金额和分类再存为模板'); return; }
+      if(val<=0 || !cat){ showToast('⚠️ 请先填金额和分类'); return; }
       STATE.templates.push({type,cat,amount:val,note:title,account});
       if(STATE.templates.length>12) STATE.templates.shift();
       saveData();
@@ -1404,10 +1404,12 @@ function renderLedgerPage(){
       const r = STATE.records.find(x=>x.id===el.dataset.rid);
       if(r){
         if(r.fromHours){
-          if(confirm('这是由工时自动生成的工资记录，若要修改请去日历页对应日期修改工时。要跳转吗？')){
-            const dateKey = r.id.replace(/^hr_/,'');
-            if(/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) openHoursSheet(dateKey);
-          }
+          showConfirm({icon:'🔒', title:'这是自动生成的工资', message:'由工时自动生成，请去日历页修改对应日期的工时', okText:'去修改', cancelText:'留着不改'}).then(ok=>{
+            if(ok){
+              const dateKey = r.id.replace(/^hr_/,'');
+              if(/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) openHoursSheet(dateKey);
+            }
+          });
           return;
         }
         openRecordSheet(r);
@@ -1869,10 +1871,10 @@ function renderMePage(){
     inp.onchange=e=>{
       const f = e.target.files[0]; if(!f) return;
       const r = new FileReader();
-      r.onload=()=>{
+      r.onload=async()=>{
         try{
           const d = JSON.parse(r.result);
-          if(confirm('将覆盖当前所有数据，继续？')){
+          if(await showConfirm({icon:'⚠️', title:'覆盖所有数据？', message:'当前所有工时和记账会被替换为文件中的数据', okText:'覆盖', cancelText:'取消', danger:true})){
             STATE = {
               settings: Object.assign({}, DEFAULT_DATA.settings, d.settings||{}),
               hours: d.hours || {},
@@ -1888,7 +1890,7 @@ function renderMePage(){
             showToast('✅ 已导入');
             renderCurrentTab();
           }
-        }catch(err){ alert('导入失败：文件格式错误'); }
+        }catch(err){ showAlert({icon:'❌', title:'导入失败', message:'文件格式错误，请检查'}); }
       };
       r.readAsText(f);
     };
@@ -1904,22 +1906,24 @@ function renderMePage(){
     if(r){ showToast('↩️ 已撤销：'+r.desc); renderCurrentTab(); renderMePage(); }
   });
 
-  document.getElementById('resync-salary').addEventListener('click',()=>{
-    if(confirm('将根据工时记录重新生成所有工资收入条目，原有自动记录会被覆盖。继续？')){
+  document.getElementById('resync-salary').addEventListener('click',async()=>{
+    if(await showConfirm({icon:'🔄', title:'重新生成工资记录？', message:'将根据工时记录重新生成所有工资收入条目，原有自动记录会被覆盖', okText:'重新生成', cancelText:'取消'})){
       resyncAllSalaryRecords();
       showToast('✅ 已同步');
       renderCurrentTab();
     }
   });
 
-  document.getElementById('clear-templates').addEventListener('click',()=>{
-    if(STATE.templates.length===0){ alert('没有模板'); return; }
-    if(confirm('清空常用模板？')){ STATE.templates = []; saveData(); renderMePage(); }
+  document.getElementById('clear-templates').addEventListener('click',async()=>{
+    if(STATE.templates.length===0){ showToast('没有模板'); return; }
+    if(await showConfirm({icon:'🗑️', title:'清空常用模板？', message:`将删除全部 ${STATE.templates.length} 个模板`, okText:'清空', cancelText:'取消', danger:true})){
+      STATE.templates = []; saveData(); renderMePage();
+    }
   });
 
-  document.getElementById('clear-data').addEventListener('click',()=>{
-    if(confirm('确定清空所有数据？')){
-      if(confirm('最后确认：真的要删除所有工时和记账数据？')){
+  document.getElementById('clear-data').addEventListener('click',async()=>{
+    if(await showConfirm({icon:'⚠️', title:'清空所有数据？', message:'这个操作会删除全部工时、记账、模板、预算等数据\n无法恢复！', okText:'继续', cancelText:'取消', danger:true})){
+      if(await showConfirm({icon:'🔴', title:'最后确认', message:'真的要删除所有数据吗？\n建议先导出备份', okText:'确认删除', cancelText:'还是算了', danger:true})){
         STATE = JSON.parse(JSON.stringify(DEFAULT_DATA));
         saveData();
         applyThemeColor();
@@ -1994,9 +1998,9 @@ function openAccountManager(){
         <div style="flex:1">${a.name}</div>
         <button data-acct-del="${i}" style="background:#2a0a0a;color:#ef4444;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px">删除</button>
       </div>`).join('') || '<div style="text-align:center;color:#666;padding:20px">暂无账户</div>';
-    list.querySelectorAll('[data-acct-del]').forEach(b=>b.addEventListener('click',()=>{
+    list.querySelectorAll('[data-acct-del]').forEach(b=>b.addEventListener('click',async()=>{
       const i = Number(b.dataset.acctDel);
-      if(confirm(`删除账户「${STATE.accounts[i].name}」？已记录的账单不会改动`)){
+      if(await showConfirm({icon:'🗑️', title:'删除账户？', message:`账户「${STATE.accounts[i].name}」将被删除\n已记录的账单不会改动`, okText:'删除', cancelText:'取消', danger:true})){
         STATE.accounts.splice(i,1);
         saveData(); renderList();
       }
@@ -2006,7 +2010,7 @@ function openAccountManager(){
   document.getElementById('acct-add').addEventListener('click',()=>{
     const icon = document.getElementById('new-acct-icon').value.trim()||'💰';
     const name = document.getElementById('new-acct-name').value.trim();
-    if(!name){ alert('请输入账户名'); return; }
+    if(!name){ showToast('⚠️ 请输入账户名'); return; }
     const k = 'u_'+Date.now().toString(36);
     STATE.accounts.push({k, name, icon});
     saveData();
@@ -2128,6 +2132,67 @@ function showToast(msg, duration=2000){
   document.body.appendChild(t);
   requestAnimationFrame(()=>t.style.opacity='1');
   setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(), 200); }, duration);
+}
+
+// ============ 自定义 Confirm / Alert（替代系统弹窗） ============
+function showConfirm(opts){
+  return new Promise(resolve=>{
+    const {title='提示', message='', okText='确定', cancelText='取消', danger=false, icon=''} = typeof opts==='string'?{message:opts}:opts;
+    const old = document.getElementById('custom-dialog');
+    if(old) old.remove();
+    const mask = document.createElement('div');
+    mask.id = 'custom-dialog';
+    mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .2s';
+    mask.innerHTML = `
+      <div class="cd-box" style="background:linear-gradient(180deg,#1a1a1a,#141414);border-radius:18px;padding:24px 20px 18px;max-width:320px;width:100%;border:1px solid #2a2a2a;box-shadow:0 12px 40px rgba(0,0,0,.5);transform:scale(.92);transition:transform .2s">
+        ${icon?`<div style="font-size:40px;text-align:center;margin-bottom:10px">${icon}</div>`:''}
+        <div style="font-size:17px;font-weight:700;text-align:center;color:#fff;margin-bottom:8px">${title}</div>
+        <div style="font-size:13px;color:#a1a1aa;text-align:center;line-height:1.6;margin-bottom:22px;white-space:pre-line">${message}</div>
+        <div style="display:flex;gap:10px">
+          <button id="cd-cancel" style="flex:1;padding:11px;background:#27272a;border:none;color:#d4d4d8;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer">${cancelText}</button>
+          <button id="cd-ok" style="flex:1;padding:11px;background:${danger?'linear-gradient(135deg,#dc2626,#991b1b)':'linear-gradient(135deg,#ff8c1a,#f97316)'};border:none;color:#fff;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px ${danger?'rgba(220,38,38,.3)':'rgba(255,140,26,.3)'}">${okText}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(mask);
+    const box = mask.querySelector('.cd-box');
+    requestAnimationFrame(()=>{ mask.style.opacity='1'; box.style.transform='scale(1)'; });
+    const close = (result)=>{
+      box.style.transform = 'scale(.92)';
+      mask.style.opacity = '0';
+      setTimeout(()=>{ mask.remove(); resolve(result); }, 200);
+    };
+    mask.querySelector('#cd-cancel').addEventListener('click',()=>close(false));
+    mask.querySelector('#cd-ok').addEventListener('click',()=>close(true));
+    mask.addEventListener('click',e=>{ if(e.target===mask) close(false); });
+  });
+}
+
+function showAlert(opts){
+  return new Promise(resolve=>{
+    const {title='提示', message='', okText='知道了', icon=''} = typeof opts==='string'?{message:opts}:opts;
+    const old = document.getElementById('custom-dialog');
+    if(old) old.remove();
+    const mask = document.createElement('div');
+    mask.id = 'custom-dialog';
+    mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .2s';
+    mask.innerHTML = `
+      <div class="cd-box" style="background:linear-gradient(180deg,#1a1a1a,#141414);border-radius:18px;padding:24px 20px 18px;max-width:320px;width:100%;border:1px solid #2a2a2a;box-shadow:0 12px 40px rgba(0,0,0,.5);transform:scale(.92);transition:transform .2s">
+        ${icon?`<div style="font-size:40px;text-align:center;margin-bottom:10px">${icon}</div>`:''}
+        <div style="font-size:17px;font-weight:700;text-align:center;color:#fff;margin-bottom:8px">${title}</div>
+        <div style="font-size:13px;color:#a1a1aa;text-align:center;line-height:1.6;margin-bottom:22px;white-space:pre-line">${message}</div>
+        <button id="cd-ok" style="width:100%;padding:11px;background:linear-gradient(135deg,#ff8c1a,#f97316);border:none;color:#fff;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px rgba(255,140,26,.3)">${okText}</button>
+      </div>`;
+    document.body.appendChild(mask);
+    const box = mask.querySelector('.cd-box');
+    requestAnimationFrame(()=>{ mask.style.opacity='1'; box.style.transform='scale(1)'; });
+    const close = ()=>{
+      box.style.transform = 'scale(.92)';
+      mask.style.opacity = '0';
+      setTimeout(()=>{ mask.remove(); resolve(); }, 200);
+    };
+    mask.querySelector('#cd-ok').addEventListener('click',close);
+    mask.addEventListener('click',e=>{ if(e.target===mask) close(); });
+  });
 }
 
 // 解析账单 CSV（支付宝/微信格式）
