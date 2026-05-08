@@ -464,6 +464,7 @@ function renderTodayCards(){
   const wd = weekdayCN(selectedDate);
   const mLabel = (selectedDate.getMonth()+1)+'月'+selectedDate.getDate()+'日';
   const holiday = HOLIDAYS[key];
+  const isToday = ymd(TODAY)===key;
   const quotes = [
     '工资到账的快乐无可替代',
     '今天的付出，明天的底气',
@@ -478,67 +479,103 @@ function renderTodayCards(){
     '今天也要好好赚钱',
     '努力工作 努力生活',
   ];
-  // 按日期 hash 选一句，每天稳定但不同
   const qIdx = (selectedDate.getMonth()*31 + selectedDate.getDate()) % quotes.length;
   const quote = quotes[qIdx];
 
-  let content;
+  // 头部：日期 + 周几 + 状态胶囊
+  let statusChip;
+  if(rec && rec.shift!=='rest') statusChip = `<span class="status-chip on">已记工时</span>`;
+  else if(rec && rec.shift==='rest') statusChip = `<span class="status-chip rest">休息日</span>`;
+  else statusChip = `<span class="status-chip todo">待记录</span>`;
+
+  const header = `
+    <div class="card-head">
+      <div class="date-wrap">
+        <div class="date-main">${mLabel} ${isToday?'<span class="today-tag">今天</span>':''}</div>
+        <div class="date-sub">${wd}${holiday?' · '+holiday.n:''}</div>
+      </div>
+      ${statusChip}
+    </div>`;
+
+  let body;
   if(rec && rec.shift!=='rest'){
     const pay = calcDayPay(rec);
     const formula = payFormulaParts(rec, 'tag');
     const otH = Number(rec.subsidies?.overtimeHours)||0;
-    content = `
-      <div class="today-card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-          <div>
-            <div style="font-size:17px;font-weight:700">${mLabel}</div>
-            <div style="font-size:12px;color:#888;margin-top:2px">${wd}${holiday?` · ${holiday.n}`:''}</div>
-          </div>
-          <div data-edit-hour="${key}" style="color:#3b82f6;cursor:pointer;font-size:13px;padding:6px 10px;background:#1e3a8a22;border-radius:14px">✏️ 编辑</div>
+    body = `
+      <div class="stats-row">
+        <div class="stat-cell">
+          <div class="stat-label">班次</div>
+          <div class="stat-value stat-icon">☀️</div>
+          <div class="stat-unit">上班</div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;padding:14px 0;background:#0f0f0f;border-radius:12px">
-          <div><div style="font-size:11px;color:#888">班次</div><div style="font-size:28px;margin-top:2px">☀️</div><div style="font-size:11px;color:#888">上班</div></div>
-          <div style="border-left:1px solid #1f1f1f;border-right:1px solid #1f1f1f"><div style="font-size:11px;color:#888">工时</div><div style="font-size:26px;font-weight:700;margin-top:2px;color:#3b82f6">${rec.hours}${otH>0?`<span style="font-size:14px;color:#fca5a5"> +${otH}h🔥</span>`:''}</div><div style="font-size:11px;color:#888">小时</div></div>
-          <div><div style="font-size:11px;color:#888">收入</div><div style="font-size:26px;font-weight:700;margin-top:2px;color:#fbbf24">${pay.toFixed(0)}</div><div style="font-size:11px;color:#888">元</div></div>
+        <div class="stat-cell mid">
+          <div class="stat-label">工时</div>
+          <div class="stat-value" style="color:#60a5fa">${rec.hours}${otH>0?`<span class="ot-badge">+${otH}🔥</span>`:''}</div>
+          <div class="stat-unit">小时</div>
         </div>
-        <div style="margin-top:10px;padding:10px 12px;background:#0f0f0f;border-radius:10px;font-size:11px;color:#aaa;line-height:1.8">💰 ${formula}</div>
-      </div>`;
+        <div class="stat-cell">
+          <div class="stat-label">收入</div>
+          <div class="stat-value" style="color:#fbbf24">${pay.toFixed(0)}</div>
+          <div class="stat-unit">元</div>
+        </div>
+      </div>
+      <div class="formula-box">💰 ${formula}</div>
+      <button class="edit-btn" data-edit-hour="${key}">✏️ 修改工时</button>`;
   } else if(rec && rec.shift==='rest'){
-    content = `
-      <div class="today-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-          <div>
-            <div style="font-size:17px;font-weight:700">${mLabel}</div>
-            <div style="font-size:12px;color:#888;margin-top:2px">${wd}${holiday?` · ${holiday.n}`:''}</div>
-          </div>
-          <div style="font-size:32px">☕</div>
-        </div>
-        <div style="text-align:center;padding:18px;background:#0f0f0f;border-radius:12px;color:#888;font-size:14px">今日休息 · 好好放松</div>
-        <button class="record-btn" data-record-hour="${key}" style="width:100%;margin-top:10px;padding:10px;background:#2a2a2a;border:none;color:#fff;border-radius:10px;font-size:14px;cursor:pointer">修改工时</button>
-      </div>`;
+    body = `
+      <div class="rest-box">
+        <div style="font-size:40px">☕</div>
+        <div class="rest-text">今日休息 · 好好放松</div>
+      </div>
+      <button class="edit-btn ghost" data-record-hour="${key}">修改</button>`;
   } else {
-    content = `
-      <div class="today-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div>
-            <div style="font-size:17px;font-weight:700">${mLabel}</div>
-            <div style="font-size:12px;color:#888;margin-top:2px">${wd}${holiday?` · ${holiday.n}`:''}</div>
-          </div>
-          <div style="font-size:11px;color:#ffa500;background:#3a2410;padding:4px 10px;border-radius:10px">待记录</div>
-        </div>
-        <div style="text-align:center;padding:12px;background:#0f0f0f;border-radius:12px">
-          <div style="font-size:13px;color:#ccc;margin-bottom:10px">💡 ${quote}</div>
-          <button class="record-btn" data-record-hour="${key}" style="padding:10px 28px;background:#2563eb;border:none;color:#fff;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">记工时</button>
-          <div style="font-size:10px;color:#555;margin-top:8px">提示：双击日历日期也可以直接记</div>
-        </div>
-      </div>`;
+    body = `
+      <div class="empty-box">
+        <div class="quote-text">💡 ${quote}</div>
+      </div>
+      <button class="rec-btn" data-record-hour="${key}">开始记工时</button>
+      <div class="hint-line">提示：双击日历日期可以直接记</div>`;
   }
+
   wrap.innerHTML = `<style>
-    .today-card{margin:8px 12px;background:#141414;border-radius:14px;padding:14px;border:1px solid #1f1f1f}
-    .today-card .formula .tag.hour{background:#1e40af33;color:#93c5fd;padding:2px 6px;border-radius:3px;font-size:11px}
-    .today-card .formula .tag.meal{background:#15803d33;color:#86efac;padding:2px 6px;border-radius:3px;font-size:11px}
-    .today-card .formula .tag.night{background:#7c2d1233;color:#fca5a5;padding:2px 6px;border-radius:3px;font-size:11px}
-  </style>` + content;
+    #today-cards{padding:4px 12px 12px}
+    .today-card{background:linear-gradient(180deg,#161616,#121212);border-radius:16px;padding:14px;border:1px solid #232323;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .date-main{font-size:18px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px}
+    .today-tag{background:#3b82f6;color:#fff;font-size:10px;padding:2px 7px;border-radius:8px;font-weight:500}
+    .date-sub{font-size:12px;color:#888;margin-top:3px}
+    .status-chip{font-size:11px;padding:5px 11px;border-radius:11px;font-weight:500}
+    .status-chip.on{background:#064e3b55;color:#6ee7b7;border:1px solid #065f46}
+    .status-chip.rest{background:#3f3f4655;color:#d4d4d8;border:1px solid #52525b}
+    .status-chip.todo{background:#3a241055;color:#fbbf24;border:1px solid #78350f}
+    .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;background:#0a0a0a;border-radius:12px;padding:14px 0;margin-bottom:10px}
+    .stat-cell{text-align:center}
+    .stat-cell.mid{border-left:1px solid #1a1a1a;border-right:1px solid #1a1a1a}
+    .stat-label{font-size:11px;color:#888;margin-bottom:4px}
+    .stat-value{font-size:26px;font-weight:700;color:#fff;line-height:1.1}
+    .stat-value.stat-icon{font-size:26px;font-weight:400}
+    .stat-unit{font-size:11px;color:#888;margin-top:3px}
+    .ot-badge{font-size:12px;color:#fca5a5;margin-left:3px;font-weight:500}
+    .formula-box{padding:10px 12px;background:#0a0a0a;border-radius:10px;font-size:11px;color:#9ca3af;line-height:1.7;margin-bottom:10px}
+    .formula-box .tag.hour{background:#1e40af33;color:#93c5fd;padding:1px 6px;border-radius:4px;font-size:10px;margin:0 1px}
+    .formula-box .tag.meal{background:#15803d33;color:#86efac;padding:1px 6px;border-radius:4px;font-size:10px;margin:0 1px}
+    .formula-box .tag.night{background:#7c2d1233;color:#fca5a5;padding:1px 6px;border-radius:4px;font-size:10px;margin:0 1px}
+    .edit-btn{width:100%;padding:10px;background:transparent;border:1px solid #2a2a2a;color:#93c5fd;border-radius:10px;font-size:13px;cursor:pointer;transition:all .15s}
+    .edit-btn:active{background:#1a1a1a}
+    .edit-btn.ghost{color:#888;border-color:#2a2a2a}
+    .rest-box{text-align:center;padding:24px 10px;background:#0a0a0a;border-radius:12px;margin-bottom:10px}
+    .rest-text{font-size:14px;color:#a1a1aa;margin-top:6px}
+    .empty-box{text-align:center;padding:16px 10px;background:#0a0a0a;border-radius:12px;margin-bottom:10px}
+    .quote-text{font-size:13px;color:#d1d5db;font-style:italic}
+    .rec-btn{width:100%;padding:12px;background:linear-gradient(135deg,#2563eb,#3b82f6);border:none;color:#fff;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,.25);transition:transform .1s}
+    .rec-btn:active{transform:scale(.98)}
+    .hint-line{font-size:10px;color:#525252;text-align:center;margin-top:8px}
+  </style>
+  <div class="today-card">
+    ${header}
+    ${body}
+  </div>`;
   wrap.querySelectorAll('[data-record-hour]').forEach(b=>b.addEventListener('click',()=>openHoursSheet(b.dataset.recordHour)));
   wrap.querySelectorAll('[data-edit-hour]').forEach(b=>b.addEventListener('click',()=>openHoursSheet(b.dataset.editHour)));
 }
