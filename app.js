@@ -2134,63 +2134,99 @@ function showToast(msg, duration=2000){
   setTimeout(()=>{ t.style.opacity='0'; setTimeout(()=>t.remove(), 200); }, duration);
 }
 
-// ============ 自定义 Confirm / Alert（替代系统弹窗） ============
+// ============ 自定义 Confirm / Alert（iOS 风格） ============
+function ensureDialogStyle(){
+  if(document.getElementById('dialog-style')) return;
+  const st = document.createElement('style');
+  st.id = 'dialog-style';
+  st.textContent = `
+    .dlg-mask{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:600;display:flex;align-items:center;justify-content:center;padding:28px;opacity:0;transition:opacity .2s ease-out}
+    .dlg-mask.show{opacity:1}
+    .dlg-box{background:#1c1c1e;border-radius:20px;max-width:310px;width:100%;overflow:hidden;transform:scale(.88) translateY(20px);transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .2s;opacity:0;box-shadow:0 20px 60px rgba(0,0,0,.6);border:.5px solid rgba(255,255,255,.06)}
+    .dlg-mask.show .dlg-box{transform:scale(1) translateY(0);opacity:1}
+    .dlg-icon-wrap{padding:24px 0 6px;display:flex;justify-content:center}
+    .dlg-icon{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;line-height:1;position:relative}
+    .dlg-icon.danger{background:linear-gradient(135deg,#ef444422,#dc262633);border:1px solid #dc262666;box-shadow:0 0 20px #dc262633}
+    .dlg-icon.warn{background:linear-gradient(135deg,#f59e0b22,#d9770633);border:1px solid #d9770666;box-shadow:0 0 20px #d9770633}
+    .dlg-icon.info{background:linear-gradient(135deg,#3b82f622,#1d4ed833);border:1px solid #3b82f666;box-shadow:0 0 20px #3b82f633}
+    .dlg-icon.success{background:linear-gradient(135deg,#10b98122,#05966933);border:1px solid #05966966;box-shadow:0 0 20px #05966933}
+    .dlg-title{font-size:17px;font-weight:600;text-align:center;color:#fff;padding:14px 24px 0;line-height:1.35}
+    .dlg-msg{font-size:13px;color:#98989d;text-align:center;line-height:1.55;padding:8px 24px 22px;white-space:pre-line}
+    .dlg-title+.dlg-btns{margin-top:10px}
+    .dlg-btns{display:flex;border-top:.5px solid rgba(255,255,255,.08)}
+    .dlg-btn{flex:1;padding:14px 8px;border:none;background:transparent;color:#0a84ff;font-size:16px;cursor:pointer;transition:background .1s;font-weight:500;-webkit-tap-highlight-color:transparent;text-align:center}
+    .dlg-btn:active{background:rgba(255,255,255,.06)}
+    .dlg-btn.cancel{color:#98989d}
+    .dlg-btn.danger{color:#ff453a;font-weight:600}
+    .dlg-btn.primary{font-weight:600}
+    .dlg-btn + .dlg-btn{border-left:.5px solid rgba(255,255,255,.08)}
+  `;
+  document.head.appendChild(st);
+}
+
 function showConfirm(opts){
   return new Promise(resolve=>{
-    const {title='提示', message='', okText='确定', cancelText='取消', danger=false, icon=''} = typeof opts==='string'?{message:opts}:opts;
+    const {title='', message='', okText='确定', cancelText='取消', danger=false, icon='', iconType=''} = typeof opts==='string'?{message:opts}:opts;
+    ensureDialogStyle();
     const old = document.getElementById('custom-dialog');
     if(old) old.remove();
     const mask = document.createElement('div');
     mask.id = 'custom-dialog';
-    mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .2s';
+    mask.className = 'dlg-mask';
+    const iconClass = iconType || (danger?'danger':'info');
+    const iconHTML = icon ? `<div class="dlg-icon-wrap"><div class="dlg-icon ${iconClass}">${icon}</div></div>` : '';
+    const titleHTML = title ? `<div class="dlg-title">${title}</div>` : '';
+    const msgHTML = message ? `<div class="dlg-msg">${message}</div>` : (title?'<div style="height:20px"></div>':'');
     mask.innerHTML = `
-      <div class="cd-box" style="background:linear-gradient(180deg,#1a1a1a,#141414);border-radius:18px;padding:24px 20px 18px;max-width:320px;width:100%;border:1px solid #2a2a2a;box-shadow:0 12px 40px rgba(0,0,0,.5);transform:scale(.92);transition:transform .2s">
-        ${icon?`<div style="font-size:40px;text-align:center;margin-bottom:10px">${icon}</div>`:''}
-        <div style="font-size:17px;font-weight:700;text-align:center;color:#fff;margin-bottom:8px">${title}</div>
-        <div style="font-size:13px;color:#a1a1aa;text-align:center;line-height:1.6;margin-bottom:22px;white-space:pre-line">${message}</div>
-        <div style="display:flex;gap:10px">
-          <button id="cd-cancel" style="flex:1;padding:11px;background:#27272a;border:none;color:#d4d4d8;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer">${cancelText}</button>
-          <button id="cd-ok" style="flex:1;padding:11px;background:${danger?'linear-gradient(135deg,#dc2626,#991b1b)':'linear-gradient(135deg,#ff8c1a,#f97316)'};border:none;color:#fff;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px ${danger?'rgba(220,38,38,.3)':'rgba(255,140,26,.3)'}">${okText}</button>
+      <div class="dlg-box">
+        ${iconHTML}
+        ${titleHTML}
+        ${msgHTML}
+        <div class="dlg-btns">
+          <button class="dlg-btn cancel" data-act="cancel">${cancelText}</button>
+          <button class="dlg-btn ${danger?'danger':'primary'}" data-act="ok">${okText}</button>
         </div>
       </div>`;
     document.body.appendChild(mask);
-    const box = mask.querySelector('.cd-box');
-    requestAnimationFrame(()=>{ mask.style.opacity='1'; box.style.transform='scale(1)'; });
+    requestAnimationFrame(()=>mask.classList.add('show'));
     const close = (result)=>{
-      box.style.transform = 'scale(.92)';
-      mask.style.opacity = '0';
-      setTimeout(()=>{ mask.remove(); resolve(result); }, 200);
+      mask.classList.remove('show');
+      setTimeout(()=>{ mask.remove(); resolve(result); }, 220);
     };
-    mask.querySelector('#cd-cancel').addEventListener('click',()=>close(false));
-    mask.querySelector('#cd-ok').addEventListener('click',()=>close(true));
+    mask.querySelector('[data-act=cancel]').addEventListener('click',()=>close(false));
+    mask.querySelector('[data-act=ok]').addEventListener('click',()=>close(true));
     mask.addEventListener('click',e=>{ if(e.target===mask) close(false); });
   });
 }
 
 function showAlert(opts){
   return new Promise(resolve=>{
-    const {title='提示', message='', okText='知道了', icon=''} = typeof opts==='string'?{message:opts}:opts;
+    const {title='', message='', okText='知道了', icon='', iconType='info'} = typeof opts==='string'?{message:opts}:opts;
+    ensureDialogStyle();
     const old = document.getElementById('custom-dialog');
     if(old) old.remove();
     const mask = document.createElement('div');
     mask.id = 'custom-dialog';
-    mask.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:600;display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .2s';
+    mask.className = 'dlg-mask';
+    const iconHTML = icon ? `<div class="dlg-icon-wrap"><div class="dlg-icon ${iconType}">${icon}</div></div>` : '';
+    const titleHTML = title ? `<div class="dlg-title">${title}</div>` : '';
+    const msgHTML = message ? `<div class="dlg-msg">${message}</div>` : (title?'<div style="height:20px"></div>':'');
     mask.innerHTML = `
-      <div class="cd-box" style="background:linear-gradient(180deg,#1a1a1a,#141414);border-radius:18px;padding:24px 20px 18px;max-width:320px;width:100%;border:1px solid #2a2a2a;box-shadow:0 12px 40px rgba(0,0,0,.5);transform:scale(.92);transition:transform .2s">
-        ${icon?`<div style="font-size:40px;text-align:center;margin-bottom:10px">${icon}</div>`:''}
-        <div style="font-size:17px;font-weight:700;text-align:center;color:#fff;margin-bottom:8px">${title}</div>
-        <div style="font-size:13px;color:#a1a1aa;text-align:center;line-height:1.6;margin-bottom:22px;white-space:pre-line">${message}</div>
-        <button id="cd-ok" style="width:100%;padding:11px;background:linear-gradient(135deg,#ff8c1a,#f97316);border:none;color:#fff;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 3px 10px rgba(255,140,26,.3)">${okText}</button>
+      <div class="dlg-box">
+        ${iconHTML}
+        ${titleHTML}
+        ${msgHTML}
+        <div class="dlg-btns">
+          <button class="dlg-btn primary" data-act="ok">${okText}</button>
+        </div>
       </div>`;
     document.body.appendChild(mask);
-    const box = mask.querySelector('.cd-box');
-    requestAnimationFrame(()=>{ mask.style.opacity='1'; box.style.transform='scale(1)'; });
+    requestAnimationFrame(()=>mask.classList.add('show'));
     const close = ()=>{
-      box.style.transform = 'scale(.92)';
-      mask.style.opacity = '0';
-      setTimeout(()=>{ mask.remove(); resolve(); }, 200);
+      mask.classList.remove('show');
+      setTimeout(()=>{ mask.remove(); resolve(); }, 220);
     };
-    mask.querySelector('#cd-ok').addEventListener('click',close);
+    mask.querySelector('[data-act=ok]').addEventListener('click',close);
     mask.addEventListener('click',e=>{ if(e.target===mask) close(); });
   });
 }
